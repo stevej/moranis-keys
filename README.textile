@@ -1,0 +1,77 @@
+Moranis Keys
+
+<small>A simple proposal for externally generating artificial primary keys
+for use in a database.</small>
+
+h3. Motivation
+
+When designing a new table in a relational database, it's typical to build
+artificial primary keys using automatic ID sequence generators with
+<tt>CREATE SEQUENCE</tt> or <tt>auto_increment</tt>. One of the drawbacks
+inherent to using sequences is that once your insert volume increases,
+sequences can become a bottleneck.
+
+h3. Solution
+
+The solution I'm proposing is called Moranis Keys, it's a bitpacked number
+built out of a two pieces: a timestamp and a random number.
+
+For the purpose of demonstration, we'll describe a 64-bit Moranis Key scheme
+where both the timestamp and the random number are 32-bits.
+
+A 64-bit Moranis Key has the following format: the HO 32-bits representing a
+timestamp in unix epoch format and the LO 32-bits being a random number.
+
+h3. Properties
+
+Moranis Keys are still subject to the collisions but only over the period of
+time denoted by the timestamp. So if you picked Unix epoch as your timestamp,
+there's the possibility of collision over the course of a second. If you
+picked time in milliseconds, then the possibility of collision shrinks to
+being over the millisecond that a key is created.
+
+Besides being simple to implement, there are several benefits:
+
+You don't have to deal with collisions over the course of the lifetime of your
+application, you only have to deal with it happening within the timeframe that
+the item is being created (a single second if you use the unix epoch). You can
+then use cheaper (read: faster but worse) methods of generating random
+numbers. You still have to worry about collisions but the recovery case isn't
+complicated; Simply regenerate the key and attempt to insert the record again.
+
+Indexes are also efficiently generated due to the HO bit of a Moranis Key
+always increasing (as long as you don't have bad clock skew).
+
+Another benefit is that outside observers can't use key values to determine
+the velocity of growth of your service if you use your keys as external
+identifiers in your system.
+
+h3. Drawbacks
+
+There are a few drawbacks: multiple items can have the same ID on different
+databases without causing a conflict. This is a general problem with any
+decentralized artificial ID generator. You could solve this by prefixing the
+random number with the hashed value of the database being used.
+
+If you have places in your code where you rely on total ordering of keys to
+help determine event causality in your system, you will need to switch to
+explicit timestamps (or other tools like lamport clocks, vector clocks, etc)
+for that purpose.
+
+h3. Key Size
+
+The example code builds a 64-bit Moranis Key out of a 32-bit timestamp and a
+32-bit random number. The scheme is adaptable to any size timestamp and
+random number you choose.
+
+h3. The Name
+
+Why "Moranis Keys"? Rick Moranis played the Keymaster in the movie
+Ghostbusters.
+
+h3. License
+
+The code is released under the Apache 2.0 License. It is included as LICENSE.
+
+Steve Jenson, San Francisco, January 2009<br />
+<tt>stevej@pobox.com</tt>
